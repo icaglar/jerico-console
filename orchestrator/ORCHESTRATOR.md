@@ -33,6 +33,42 @@ Dosyaların değişmiş olması işin bittiğini göstermez. Bitiş yalnızca wo
 - Her göreve o göreve özel bir işaret ver, aynısını tekrar kullanma
 - İzleyici süre dolduğu için kapandıysa bu "bitti" demek değildir; ayırt et
 
+## cao Supervisor Flow
+
+sales-brain sprint work runs through **cao** (cli-agent-orchestrator). Repo: `~/cli-agent-orchestrator`. Server: `http://localhost:9889`. Backend: herdr terminal. Session name: `cao-sb-sprint-v6`. Supervisor profile: `code_supervisor` (stored in `~/.aws/cli-agent-orchestrator/agent-store/`).
+
+**API quick reference**
+
+| Action | Command |
+|--------|---------|
+| List terminals in session | `GET /sessions/<session>/terminals` |
+| Read terminal output | `GET /terminals/<id>/output` → JSON key `output` |
+| Terminal status | `GET /terminals/<id>` → `status`: idle\|processing\|completed |
+| Send message to supervisor | `curl -G --data-urlencode "message=..." --data-urlencode "sender_id=orchestrator" http://localhost:9889/terminals/<id>/input` |
+
+**Relaying worker verdicts**
+
+Worker profiles `developer-claude` and `reviewer-claude` do not load `cao-mcp-server`, so workers cannot `send_message` to the supervisor directly. Their `STATUS: DONE` and `REVIEW_APPROVED`/`REVIEW_REJECTED` reports arrive as cross-session messages or only in terminal output.
+
+Relay protocol:
+1. Pull verdict: `GET /terminals/<id>/output` if no cross-session message arrived.
+2. For long verdicts, save to `~/.aws/cli-agent-orchestrator/tmp/review-<issue>-<terminal>.md` and point the supervisor at the file path.
+3. Before relaying any worker claim, verify in git: `git log` (commit exists, parent is HEAD), `git status -sb` (tree clean).
+
+**Parallel worker coordination**
+
+- Give each worker an explicit file ownership list — their files AND files that are not theirs.
+- Only one worker writes migrations at a time; migration numbers must not collide.
+- When HEAD moves (another worker commits), tell others so they rebase before continuing.
+
+**Claude Code workspace-trust dialog**
+
+Spawn failure "worker never started after resubmits / input not accepted after retries" means the Claude Code workspace-trust dialog is blocking the pane. Fix: in `~/.claude.json` set `projects['<dir>'].hasTrustDialogAccepted = true` (and `hasCompletedProjectOnboarding`) before cao spawns `claude_code` workers in that directory. Check the stuck pane first via `GET /terminals/<id>/output` — the dialog text is visible there.
+
+**Testcontainers / Docker**
+
+Docker must be running for Testcontainers tests (e.g. `KnowledgeApprovalServiceConcurrentTest`). Run `docker info` before treating that error as a real test failure.
+
 ## Workflow
 
 1. Check status with `~/.local/bin/dev status`
