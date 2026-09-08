@@ -3,7 +3,8 @@ projects.conf
 
 # Runtime state and logs
 states/
-worker_types/
+worker_types/*
+!worker_types/*.md
 test-results/
 .ai_windows
 .orchestrator_ai

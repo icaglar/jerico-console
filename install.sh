@@ -83,6 +83,23 @@ orch_conf="${CONFIG_DIR}/orchestra.conf"
 { grep -v "^ORCHESTRA_REPO=" "$orch_conf" 2>/dev/null || true; echo "ORCHESTRA_REPO=\"${ORCH_DIR}\""; } > "${orch_conf}.tmp" && mv "${orch_conf}.tmp" "$orch_conf"
 echo "Saved: repo path -> ${orch_conf}"
 
+# ── Install CAO worker profiles ──────────────────────────────────
+CAO_AGENT_STORE="${HOME}/.aws/cli-agent-orchestrator/agent-store"
+if [[ -d "${CAO_AGENT_STORE}" ]] || [[ -d "${HOME}/cli-agent-orchestrator" ]]; then
+  mkdir -p "${CAO_AGENT_STORE}"
+  for profile in developer-claude reviewer-claude; do
+    src="${ORCH_DIR}/worker_types/${profile}.md"
+    dst="${CAO_AGENT_STORE}/${profile}.md"
+    if [[ -f "$src" ]]; then
+      cp "$src" "$dst"
+      echo "Installed CAO profile: ${dst}"
+    fi
+  done
+else
+  echo "NOTE: cao agent-store not found (${CAO_AGENT_STORE}) — skipping CAO profile install."
+  echo "      Run install.sh again after setting up cli-agent-orchestrator."
+fi
+
 # ── Create empty projects.conf if missing ────────────────────────
 if [[ ! -f "${CONFIG_DIR}/projects.conf" ]]; then
   cat > "${CONFIG_DIR}/projects.conf" <<EOF
