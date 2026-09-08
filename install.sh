@@ -84,6 +84,9 @@ orch_conf="${CONFIG_DIR}/orchestra.conf"
 echo "Saved: repo path -> ${orch_conf}"
 
 # ── Install CAO worker profiles ──────────────────────────────────
+# worker_types/*.md are the versioned source; ~/.aws/cli-agent-orchestrator/agent-store/
+# is the live deploy target that cao reads at runtime. Any existing profile is backed up
+# before overwrite so a rollback is always possible.
 CAO_AGENT_STORE="${HOME}/.aws/cli-agent-orchestrator/agent-store"
 if [[ -d "${CAO_AGENT_STORE}" ]] || [[ -d "${HOME}/cli-agent-orchestrator" ]]; then
   mkdir -p "${CAO_AGENT_STORE}"
@@ -91,6 +94,11 @@ if [[ -d "${CAO_AGENT_STORE}" ]] || [[ -d "${HOME}/cli-agent-orchestrator" ]]; t
     src="${ORCH_DIR}/worker_types/${profile}.md"
     dst="${CAO_AGENT_STORE}/${profile}.md"
     if [[ -f "$src" ]]; then
+      if [[ -f "$dst" ]] && ! diff -q "$src" "$dst" >/dev/null 2>&1; then
+        bak="${dst}.bak.$(date +%s)"
+        cp "$dst" "$bak"
+        echo "Backed up: ${bak}"
+      fi
       cp "$src" "$dst"
       echo "Installed CAO profile: ${dst}"
     fi
