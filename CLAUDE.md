@@ -98,6 +98,33 @@ Track what was done, where we left off, what's next — survives session crashes
 **After context compact:** Run `dev state show --all` to restore context.
 **Before planning:** Run `dev analyze --all` to see live project health.
 
+## NotebookLM Doc Sync
+
+NotebookLM notebooks are synced per-project. Local-file sources are **static snapshots** — a doc edit does not update the notebook automatically; a re-sync is required.
+
+- **Projects with a notebook:** `sales-brain` (notebook id `2bb45704-561d-4b00-8508-adcc39d2918e`)
+- **Config lives at:** `~/.config/orchestra/notebooklm/<alias>.conf` (NOTEBOOK_ID, PROJECT_DIR, DOCS)
+- **State lives at:** `~/.config/orchestra/notebooklm/<alias>.state` (sha256 per file; seeded after first upload)
+
+```bash
+# Sync docs for a project (skips unchanged files by sha256)
+~/.config/orchestra/scripts/notebooklm-sync.sh sales-brain
+
+# Dry-run — shows what would change, writes nothing
+~/.config/orchestra/scripts/notebooklm-sync.sh sales-brain --dry-run
+
+# Force re-upload all docs even if unchanged
+~/.config/orchestra/scripts/notebooklm-sync.sh sales-brain --force
+
+# Install post-commit hook in the project repo
+~/.config/orchestra/scripts/notebooklm-sync.sh --install-hook sales-brain
+```
+
+- The **post-commit hook** covers committed doc changes automatically (runs in background).
+- **Uncommitted edits** (e.g. mid-task doc changes) need a **manual sync run**.
+- **Rule:** after a worker finishes work that touches `docs/*.md`, `README.md`, or `CLAUDE.md` in any project with a notebook, the orchestrator runs `notebooklm-sync.sh <alias>` before closing the task.
+- **If the script reports FAILED, verify with `nlm source list` before retrying; never use `--force` as a retry — it deletes and re-uploads every source.**
+
 ## Task Lifecycle (CRITICAL — follow this for EVERY task, NO EXCEPTIONS)
 
 ### Single worker
