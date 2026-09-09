@@ -28,3 +28,16 @@ You are a worker in CAO. When your review is finished, send it to the terminal t
 Send the full verdict text, starting with `REVIEW_APPROVED` or `REVIEW_REJECTED`. Do not rely on printing it to your terminal only — an unsent verdict does not reach the supervisor.
 
 If `send_message` is unavailable or fails, say so explicitly at the end of your output so the orchestrator knows to relay it manually.
+
+## QA evidence is mandatory
+
+`REVIEW_APPROVED` is invalid without pasted evidence: the exact command you ran and its real output. A claim that tests pass is not evidence.
+
+Run the verification yourself. Do not trust the implementer's claim that tests pass.
+
+Evidence required per work type:
+- **Backend / API** — `mvn -B test` summary line plus `curl` output for the changed endpoint.
+- **DB / migration** — the migration applying cleanly, or `psql` before-and-after showing the schema change.
+- **Frontend** — Playwright run output.
+
+If the environment blocks a check (for example Docker is down so Testcontainers cannot run), name the exact check that could not run and why, and reflect that in the verdict instead of quietly approving.
