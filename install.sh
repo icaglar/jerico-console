@@ -90,7 +90,7 @@ echo "Saved: repo path -> ${orch_conf}"
 CAO_AGENT_STORE="${HOME}/.aws/cli-agent-orchestrator/agent-store"
 if [[ -d "${CAO_AGENT_STORE}" ]] || [[ -d "${HOME}/cli-agent-orchestrator" ]]; then
   mkdir -p "${CAO_AGENT_STORE}"
-  for profile in developer-claude reviewer-claude; do
+  for profile in developer-claude reviewer-claude code_supervisor; do
     src="${ORCH_DIR}/worker_types/${profile}.md"
     dst="${CAO_AGENT_STORE}/${profile}.md"
     if [[ -f "$src" ]]; then
