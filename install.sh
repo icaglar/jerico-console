@@ -225,3 +225,110 @@ echo "Next steps:"
 echo "  1. Add projects: dev add <alias> <path>"
 echo "  2. Start a worker: dev start <alias>"
 echo "  3. See all commands: dev help"
+
+# ── Post-install checklist ───────────────────────────────────────
+# Checks machine-local prerequisites this repo cannot carry.
+# Prints OK or MISSING + a fix command for each. Never exits non-zero.
+_check() {
+  echo ""
+  echo "Post-install checklist (machine-local prerequisites)"
+  echo "------------------------------------------------------"
+
+  # 1. cao server binary
+  if command -v cao-server &>/dev/null || [[ -x "${HOME}/.local/bin/cao-server" ]]; then
+    echo "  OK      cao server binary (cao-server)"
+  else
+    echo "  MISSING  cao server binary (cao-server)"
+    echo "           fix: uv tool install cli-agent-orchestrator   # or see ~/cli-agent-orchestrator"
+  fi
+
+  # 2. cao MCP bridge binary
+  if command -v cao-mcp-server &>/dev/null; then
+    echo "  OK      cao MCP bridge binary (cao-mcp-server)"
+  else
+    echo "  MISSING  cao MCP bridge binary (cao-mcp-server)"
+    echo "           fix: uv tool install cli-agent-orchestrator   # or see ~/cli-agent-orchestrator"
+  fi
+
+  # 3. cao MCP registered with Claude Code
+  if claude mcp list 2>/dev/null | grep -q '^cao' 2>/dev/null; then
+    echo "  OK      cao MCP registered with Claude Code"
+  else
+    echo "  MISSING  cao MCP registered with Claude Code"
+    echo "           fix: cd ${CONFIG_DIR} && claude mcp add cao --scope local -- cao-mcp-server"
+  fi
+
+  # 4. CAO agent-store profiles
+  local _cao_profile="${HOME}/.aws/cli-agent-orchestrator/agent-store/reviewer-claude.md"
+  if [[ ! -f "$_cao_profile" ]]; then
+    echo "  MISSING  CAO agent-store profiles (reviewer-claude.md not found)"
+    echo "           fix: re-run install.sh after installing cao"
+  elif ! grep -q 'cao-mcp-server' "$_cao_profile" 2>/dev/null; then
+    echo "  MISSING  CAO agent-store profiles (reviewer-claude.md missing cao-mcp-server string)"
+    echo "           fix: re-run install.sh after installing cao"
+    echo "           NOTE: workers cannot send_message; a human must relay their reports."
+  else
+    echo "  OK      CAO agent-store profiles (reviewer-claude.md)"
+  fi
+
+  # 5. Claude Code workspace-trust flag for this config dir
+  if ! command -v python3 &>/dev/null; then
+    echo "  UNKNOWN  Claude Code workspace-trust for ${CONFIG_DIR} (python3 not found)"
+  elif [[ ! -f "${HOME}/.claude.json" ]]; then
+    echo "  UNKNOWN  Claude Code workspace-trust for ${CONFIG_DIR} (~/.claude.json not found)"
+  else
+    local _trust
+    _trust=$(python3 -c "
+import json, os, sys
+try:
+    with open(os.path.expanduser('~/.claude.json')) as f:
+        d = json.load(f)
+    val = d.get('projects', {}).get('${CONFIG_DIR}', {}).get('hasTrustDialogAccepted', None)
+    print('true' if val is True else ('false' if val is False else 'missing'))
+except Exception:
+    print('error')
+" 2>/dev/null) || _trust="error"
+    if [[ "$_trust" == "true" ]]; then
+      echo "  OK      Claude Code workspace-trust for ${CONFIG_DIR}"
+    else
+      echo "  MISSING  Claude Code workspace-trust for ${CONFIG_DIR} (hasTrustDialogAccepted=${_trust})"
+      echo "           fix: without it cao worker spawns die on the trust dialog"
+      echo "                ('worker never started after resubmits'). Open Claude Code once"
+      echo "                in each project dir and accept, or set the flag in ~/.claude.json."
+    fi
+  fi
+
+  # 6. nlm CLI (NotebookLM sync — optional)
+  if command -v nlm &>/dev/null; then
+    echo "  OK      nlm CLI (NotebookLM sync)"
+  else
+    echo "  MISSING  nlm CLI (NotebookLM sync)"
+    echo "           fix: install nlm, then: nlm login"
+    echo "           NOTE: only needed if you use scripts/notebooklm-sync.sh"
+  fi
+
+  # 7. tmux and git
+  if command -v tmux &>/dev/null; then
+    echo "  OK      tmux"
+  else
+    echo "  MISSING  tmux"
+    echo "           fix: brew install tmux"
+  fi
+  if command -v git &>/dev/null; then
+    echo "  OK      git"
+  else
+    echo "  MISSING  git"
+    echo "           fix: brew install git"
+  fi
+
+  echo ""
+  echo "Not carried by this repo (per-machine):"
+  echo "  projects.conf          gitignored — recreate with: dev add <alias> <path>"
+  echo "  notebooklm/*.conf      notebook ID mappings (per-project)"
+  echo "  ~/.claude.json         MCP registrations and workspace-trust settings"
+  echo ""
+
+  return 0
+}
+
+_check || true
